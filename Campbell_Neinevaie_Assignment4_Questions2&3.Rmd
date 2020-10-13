@@ -10,7 +10,6 @@ library(deSolve)
 library(Ryacas)
 knitr::opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
 ```
-Test change
 
 ##Question 3 Heterozygote advantage (7 pts)
 Use the idea of adaptive topography to describe a case of heterozygote advantage (as in Figure 5.14). You may choose any biologically plausible values that results in a stable equilibrium with 0.5 < p < 1, where p is the proportion of A1 in a two allele system. Show the result in a plot and give the equilibrium value of p.
