@@ -1,0 +1,132 @@
+---
+title: "Pre_Assignment_4"
+author: "Cassie Campbell"
+date: "10/11/2020"
+output: word_document
+---
+
+```{r setup}
+library(deSolve)
+library(Ryacas)
+knitr::opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
+```
+
+
+##Question 3 Heterozygote advantage (7 pts)
+Use the idea of adaptive topography to describe a case of heterozygote advantage (as in Figure 5.14). You may choose any biologically plausible values that results in a stable equilibrium with 0.5 < p < 1, where p is the proportion of A1 in a two allele system. Show the result in a plot and give the equilibrium value of p.
+
+  w11 = 0.5 fitness of 11 homozygote
+  w12 = 1 fitness of 12 heterozygote
+  w22 = 0.25 fitness of 22 homozygote
+
+```{r}
+#function for natural selection from class
+natsel <- function(w11,w12,w22,p0,time){
+  p <- p0
+  w <- NULL
+  for (t in 1:time){
+    wbar = p[t]^2*w11+2*p[t]*(1-p[t])*w12+(1-p[t])^2*w22
+    pprime = (p[t]*w11 + (1-p[t])*w12)*p[t]/wbar
+    p <- c(p, pprime)
+    w <- c(w, wbar)
+  }
+  return(cbind(p,w))
+}
+
+#set inital vaules
+w11<- 0.5
+w12<- 1
+w22<- 0.25
+p0<-0.95
+time <- 250
+
+#Plot p ratio over time
+plot(NA,xlim=c(0,time),ylim=c(0,1),ylab="p",xlab="time")
+output <- natsel(w11,w12,w22,p0,time) #heterozygote advantage)
+lines(output[1:250,"p"]~c(1:time),lwd=2)
+
+#Plot wbar against p
+p<-seq(0,1,by=0.01)
+wbar = expression(p^2*w11+2*p*(1-p)*w12+(1-p)^2*w22)
+plot(eval(wbar)~p,type="l",xlab="Fraction of A1 in gene pool",ylab="Average relative selective value")
+points(0.6,0.7)
+
+#vaule of equilibrium p
+output[250,1]
+```
+
+For this example, we chose the heterozygote to have the highest fitness (1). To skew the equilibrium p to the right, we made the 11 homozygote have a higher fitness (0.5) than the 22 homozygote (0.25). This results in an equilibrium p of 0.6
+
+
+Note for Fargam: Drew's code also had this in it, but I have no idea what it's used for. Do you know what's going on here?
+
+#change in p
+deltap<--p*(-1+p)*(p*w11-2*w12*p+w22*p+w12-w22)/(p^2*w11+2*w12*p-2*w12*p^2+w22-2*w22*p+w22*p^2)
+deltapalt <- -p*(-1+p)*(p*w11-2*w12*p+w22*p+w12-w22)/(p^2*w11+2*w12*p-2*w12*p^2+w22-2*w22*p+w22*p^2)
+
+##Question 4: Genetic drift and maintenance of genetic diversity (10 pts)
+Last assignment we considered the minimum viable population size of a population of conservation concern. Long term conservation also requires maintenance of genetic diversity. Using simulations and starting with the example of drift mixed with selection from the chapter, determine the minimum population size to provide a 99% chance of preserving both alleles for 100 generations.  (This assumes constant population size). Explain (in words) how genetic would interact with demographic stochasticity in a realistic population, as studied in the previous assignment. Does this have any implications for conservation management?
+
+```{r}
+#function for genetic drift and natural selction from class
+drift_ns <- function(w11,w12,w22,p0,n,time){ 
+  p <- p0
+  for (t in 1:time){
+    a1 <- rbinom(2*n,size=1,prob=p[t])
+    pd <- sum(a1)/(2*n)
+    wbar = pd^2*w11+2*pd*(1-pd)*w12+(1-pd)^2*w22
+    pprime = (pd*w11 + (1-pd)*w12)*pd/wbar
+    p <- c(p, pprime)
+  }
+  return(p)
+}
+
+set.seed(1)
+p0 <- 0.5  #initial frequency of A1
+time <- 100  #Number of generations
+n <- 10  #Population size, assumed to be constant here
+e <- NULL
+#loop 1000 times
+for (i in 1:1000){
+  e <- cbind(e,drift_ns(w11=0.5,w12=1,w22=0.5,p0=p0,n=n,time=time))
+}
+#count the number of times the population goes to 100% or 0% for p
+sum(e[100,] == 0) + sum(e[100,] == 1)
+```
+
+```{r}
+#figure
+colors<-rainbow(1000)
+plot(e[,1],col=colors[1],lwd=1.5,type="l",ylim=c(0,1),xlab="generation",ylab="proportion A1")
+for (i in 2:1000){
+  lines(e[,i],col=colors[i],lwd=1.5)
+}
+```
+
+```{r}
+#loop to test differnt vaules of n0
+output_n0<-NULL
+for(n0 in 1:20) {
+  set.seed(1)
+  p0 <- 0.5  #initial frequency of A1
+  time <- 100  #Number of generations
+  e <- NULL
+  for (i in 1:1000){
+    e <- cbind(e,drift_ns(w11=0.5,w12=1,w22=0.5,p0=p0,n=n0,time=time))
+  }
+  output_n0<-rbind(output_n0, c(n0, (sum(e[100,] == 0) + sum(e[100,] == 1))))
+}
+colnames(output_n0)<-c("n0","Pop all Homozygous")
+output_n0
+```
+
+```{r}
+plot (output_n0[,2]~output_n0[,1], ylab="Times Population Went Homozygous/1000", xlab="n0")
+abline(h=10)
+```
+
+Because we tested the values of n0 1000 times, to be 99% confident that the population will not become homozygous, we are looking of a value under 10. In this simulation, n0=14 achieves that goal. Thus, a starting population of 14 or larger would preserve both alleles for 100 generations.
+
+Genetic drift is the change in gene frequencies due to randomness, and demographic stochasticity is random fluctuations in birth and death rates. Demographic stochasticity can change the population size, which determines the strength of genetic drift. Genetic drift has a stronger effect in smaller populations. Thus, if demographic stochasticity causes the population to randomly decline, than the population will become more vulnerable to genetic drift. For conservation management, this mean that a population needs to be large enough to preserve genetic diversity from the effects of genetic drift, and large enough that demographic stochasticity does not make the population small enough to cause genetic drift to become a problem. For example, when we calculated demographic stochasticity in the previous assignment, we figured out the initial population needed to prevent the population from reaching zero individuals. However, here we know that we need at least 14 individuals to preserve genetic diversity. Thus, when taking into account both demographic stochasticity and genetic drift, we would have to have an initial population large enough so that demographic stochasticity does not cause the population to decrease below the value needed to persevere genetic diversity. So the real starting population that we need in this case would be much higher than 14.
+
+Note for Fargam: I don't think that he's asking us to do this calculation, do you?
